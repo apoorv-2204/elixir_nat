@@ -8,17 +8,17 @@ defmodule NatEx.Intercepts.InetExt do
 
   def get_internal_address(ip) do
     key = {:inet_ext, :get_internal_address, [ip]}
-    IO.puts("[#{__MODULE__}] [REQ] #{key}")
+    Logger.info("[#{__MODULE__}] [REQ] #{key}")
 
     case NATCache.get(key) do
       nil ->
         data = get_internal_address(ip)
-        IO.puts("#{__MODULE__} [RESP] [ORI] #{data}")
+        Logger.info("#{__MODULE__} [RESP] [ORI] #{data}")
         NATCache.put(key, data)
         data
 
       internal_address ->
-        IO.puts("[#{__MODULE__}] [RESP] [CACHE] #{internal_address}")
+        Logger.info("[#{__MODULE__}] [RESP] [CACHE] #{internal_address}")
         internal_address
     end
   end

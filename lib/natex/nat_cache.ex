@@ -3,6 +3,8 @@ defmodule NatEx.NATCache do
 
   alias NatEx.Utils
 
+  require Logger
+
   @table :intercept_cache
   @dir Utils.mut_dir()
 
@@ -69,7 +71,7 @@ defmodule NatEx.NATCache do
   end
 
   def handle_cast(:print, %{dets: dets} = state) do
-    :dets.foldl(fn {k, v}, _ -> IO.puts("#{k}: #{v}") end, :ok, dets)
+    :dets.foldl(fn {k, v}, _ -> Logger.info("#{k}: #{v}") end, :ok, dets)
     {:noreply, state}
   end
 
@@ -103,7 +105,7 @@ defmodule NatEx.NATCache do
   def update_cache(:gen_udp, module, socket, ip, port, msg) do
     key = {:gen_udp, :send, [ip, port, msg]}
 
-    IO.puts("[#{inspect(module)}] [RESP] [ORI] #{inspect(data)}")
+    Logger.info("[#{inspect(module)}] [RESP] [ORI] #{inspect(data)}")
     Logger.info("[#{inspect(module)}] [RESP] [ORI] #{inspect(data)}")
     NATCache.put(key, %{socket: socket, ip: ip, port: port, msg: msg})
   end
@@ -112,7 +114,7 @@ defmodule NatEx.NATCache do
         {:trace, _pid, "receive", %{udp: socket, ip: ip, port: port, msg: msg} = data},
         key
       ) do
-    IO.puts("[#{inspect(__MODULE__)}] [RESP] [ORI] #{inspect(data)}")
+    Logger.info("[#{inspect(__MODULE__)}] [RESP] [ORI] #{inspect(data)}")
     NATCache.put(key, %{socket: socket, ip: ip, port: port, msg: msg})
   end
 
