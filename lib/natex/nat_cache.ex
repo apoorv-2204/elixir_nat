@@ -1,7 +1,7 @@
-defmodule NatEx.NATCache do
+defmodule Natex.NATCache do
   use GenServer
 
-  alias NatEx.Utils
+  alias Natex.Utils
 
   require Logger
 
@@ -105,8 +105,8 @@ defmodule NatEx.NATCache do
   def update_cache(:gen_udp, module, socket, ip, port, msg) do
     key = {:gen_udp, :send, [ip, port, msg]}
 
-    Logger.info("[#{inspect(module)}] [RESP] [ORI] #{inspect(data)}")
-    Logger.info("[#{inspect(module)}] [RESP] [ORI] #{inspect(data)}")
+    Logger.info("[#{inspect(module)}] [RESP] [ORI] #{inspect(msg)}")
+    Logger.info("[#{inspect(module)}] [RESP] [ORI] #{inspect(msg)}")
     NATCache.put(key, %{socket: socket, ip: ip, port: port, msg: msg})
   end
 

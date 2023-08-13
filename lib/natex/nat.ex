@@ -1,13 +1,13 @@
-defmodule NatEx.NAT do
+defmodule Natex.NAT do
   @moduledoc false
   @nat_tries 3
   @nat_initial_ms 250
   @lifetime 3600
 
-  alias NatEx.NATCache
-  alias NatEx.NatupnpV1
-  alias NatEx.NatupnpV2
-  alias NatEx.Natpmp
+  alias Natex.NATCache
+  alias Natex.NatupnpV1
+  alias Natex.NatupnpV2
+  alias Natex.Natpmp
 
   @supported_protocols [NatupnpV1, NatupnpV2, Natpmp]
   @discover_timeout 5_000

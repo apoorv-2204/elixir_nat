@@ -1,10 +1,10 @@
-defmodule NatEx.Application do
+defmodule Natex.Application do
   @moduledoc false
 
   use Application
 
-  alias NatEx.Utils
-  alias NatEx.NATCache
+  alias Natex.Utils
+  alias Natex.NATCache
 
   @spec start(any, any) :: {:error, any} | {:ok, pid}
   def start(_type, _args) do
@@ -15,7 +15,7 @@ defmodule NatEx.Application do
 
     Supervisor.start_link(Utils.configurable_children(children),
       strategy: :one_for_one,
-      name: NatEx.Supervisor
+      name: Natex.Supervisor
     )
   end
 end

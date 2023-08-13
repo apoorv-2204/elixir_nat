@@ -1,14 +1,14 @@
-defmodule NatEx.NATScan do
+defmodule Natex.NATScan do
   @cache_file Application.compile_env(:natex, :cache_file, "nat_cache")
 
-  alias NatEx.NATCache
-  alias NatEx.Intercepts.GenUdp
-  alias NatEx.Intercepts.Httpc
+  alias Natex.NATCache
+  alias Natex.Intercepts.GenUdp
+  alias Natex.Intercepts.Httpc
 
-  alias NatEx.Intercepts
-  alias NatEx.NatupnpV1
-  alias NatEx.NatupnpV2
-  alias NatEx.Natpmp
+  alias Natex.Intercepts
+  alias Natex.NatupnpV1
+  alias Natex.NatupnpV2
+  alias Natex.Natpmp
 
   require Logger
 

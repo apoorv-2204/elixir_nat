@@ -1,7 +1,7 @@
-defmodule NatEx.NATCacheTest do
+defmodule Natex.NATCacheTest do
   use ExUnit.Case
 
-  alias NatEx.NATCache
+  alias Natex.NATCache
 
   test "cache operations" do
     NATCache.start_link(get: true)

@@ -1,5 +1,5 @@
-defmodule NatEx.Intercepts.Httpc do
-  alias NatEx.NATCache
+defmodule Natex.Intercepts.Httpc do
+  alias Natex.NATCache
 
   require Logger
 

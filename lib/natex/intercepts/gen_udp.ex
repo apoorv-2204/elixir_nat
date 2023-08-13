@@ -1,6 +1,6 @@
-defmodule NatEx.Intercepts.GenUdp do
+defmodule Natex.Intercepts.GenUdp do
   @moduledoc false
-  alias NatEx.NATCache
+  alias Natex.NATCache
 
   require Logger
 
