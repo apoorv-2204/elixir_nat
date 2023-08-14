@@ -3,6 +3,7 @@ defmodule Natex.Utils do
 
   use Natex.Constants
   import Bitwise, only: [bsl: 2]
+  use Natex.Errors
 
   @doc """
   Returns path in the mutable storage directory
@@ -108,7 +109,10 @@ defmodule Natex.Utils do
     end
   end
 
-  def random_port(), do: :rand.uniform(62000)
+  @spec random_port() :: pos_integer()
+  def random_port() do
+    :rand.uniform(62000)
+  end
 
   def timestamp() do
     {unix_milli, sec, _} = :erlang.timestamp()
@@ -176,21 +180,79 @@ defmodule Natex.Utils do
     protocol |> String.upcase()
   end
 
-  @doc """
-  Takes a list of XML elements (xml), iterates through the elements, and extracts the text value
-  from the first XML text node it encounters. This extracted text value is then assigned to the
-  variable T, which is returned as the result of the function.
-  """
-  def extract_txt(xml) do
-    extracted_text_values =
-      xml
-      # https://www.erlang.org/doc/man/erlang#is_record-2
-      |> Enum.filter(fn x -> :erlang.is_record(x, :xmlText) end)
-      |> Enum.map(& &1.xmlText.value)
+  defp find_device([], _device_type), do: false
 
-    [first | _] = extracted_text_values
-    first
+  defp find_device([device | rest], device_type) do
+    case device_type(device) do
+      device_type ->
+        {:ok, device}
+
+      _ ->
+        find_device(rest, device_type)
+    end
   end
+
+  def device_type(device) do
+    extract_txt(:xmerl_xpath.string("deviceType/text()", device))
+  end
+
+  @doc """
+    Search for device:WANDevice:1/2
+  """
+  def get_wan_device(device, root_url, version) do
+    case get_device(device, wan_device_tag(version)) do
+      {:ok, device1} ->
+        get_connection_device(device1, root_url, version)
+
+      _ ->
+        {:error, :no_wan_device}
+    end
+  end
+
+  def wan_device_tag("1"), do: "urn:schemas-upnp-org:device:WANDevice:1"
+  def wan_device_tag("2"), do: "urn:schemas-upnp-org:device:WANDevice:2"
+
+  @doc """
+    Search for device:WANConnectionDevice:1/2
+  """
+  def get_connection_device(device, root_url, version) do
+    case get_device(device, wan_conn_device_tag(version)) do
+      {:ok, wan_conn_device} ->
+        get_connection_url(wan_conn_device, root_url, version)
+
+      _ ->
+        {:error, :no_wanconnection_device}
+    end
+  end
+
+  def wan_conn_device_tag("1"), do: "urn:schemas-upnp-org:device:WANConnectionDevice:1"
+  def wan_conn_device_tag("2"), do: "urn:schemas-upnp-org:device:WANConnectionDevice:2"
+
+  def get_device(device, device_type) do
+    device_list = :xmerl_xpath.string("deviceList/device", device)
+    find_device(device_list, device_type)
+  end
+
+  def get_connection_url(device, root_url, version) do
+    with {:ok, service} <- get_service(device, service_type_tag(version)),
+         url <- extract_txt(:xmerl_xpath.string("controlURL/text()", service)),
+         {:fetch_service, [scheme, rest]} <- {:fetch_service, String.split(root_url, "://")},
+         {:fetch_service, [net_loc | _]} <- {:fetch_service, String.split(rest, "/")} do
+      ctl_url = "#{scheme}://#{net_loc}#{url}"
+      {:ok, ctl_url}
+    else
+      {:fetch_service, e} ->
+        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
+        {:error, :invalid_control_url}
+
+      e ->
+        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
+        {:error, :no_wanipconnection}
+    end
+  end
+
+  def service_type_tag("1"), do: "urn:schemas-upnp-org:service:WANIPConnection:1"
+  def service_type_tag("2"), do: "urn:schemas-upnp-org:service:WANIPConnection:2"
 
   def get_service(device, service_type) do
     service_list = :xmerl_xpath.string("serviceList/service", device)
@@ -209,68 +271,79 @@ defmodule Natex.Utils do
     end
   end
 
-  def get_device(device, device_type) do
-    device_list = :xmerl_xpath.string("deviceList/device", device)
-    find_device(device_list, device_type)
+  @doc """
+  Takes a list of XML elements (xml), iterates through the elements, and extracts the text value
+  from the first XML text node it encounters. This extracted text value is then assigned to the
+  variable T, which is returned as the result of the function.
+
+  or just search for value in the xml response from router
+  """
+  def extract_txt(xml) do
+    extracted_text_values =
+      xml
+      # https://www.erlang.org/doc/man/erlang#is_record-2
+      |> Enum.filter(fn x -> :erlang.is_record(x, :xmlText) end)
+      |> Enum.map(& &1.xmlText.value)
+
+    [first | _] = extracted_text_values
+    first
   end
 
-  defp find_device([], _device_type), do: false
-
-  defp find_device([device | rest], device_type) do
-    case device_type(device) do
-      device_type ->
-        {:ok, device}
-
-      _ ->
-        find_device(rest, device_type)
-    end
-  end
-
-  def device_type(device) do
-    extract_txt(:xmerl_xpath.string("deviceType/text()", device))
-  end
-
-  # "urn:schemas-upnp-org:service:WANIPConnection:1"
-  # "urn:schemas-upnp-org:service:WANIPConnection:2"
-
-  def get_connection_url(device, root_url, version) do
-    with {:ok, service} <- get_service(device, version),
-         url <- extract_txt(:xmerl_xpath.string("controlURL/text()", service)),
-         {:fetch_service, [scheme, rest]} <- {:fetch_service, String.split(root_url, "://")},
-         {:fetch_service, [net_loc | _]} <- {:fetch_service, String.split(rest, "/")} do
-      ctl_url = "#{scheme}://#{net_loc}#{url}"
-      {:ok, ctl_url}
+  def get_device_address(%Natex.NatUPnP{service_url: url}) do
+    # https://www.erlang.org/doc/man/uri_string#parse-1
+    # https://hexdocs.pm/elixir/1.14.1/URI.html#parse/1
+    with {:ok, %URI{host: host}} <- URI.parse(url),
+         {:ok, ip} <- :inet.getaddr(host, :inet) do
+      {:ok, :inet.ntoa(ip)}
     else
-      {:fetch_service, e} ->
-        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
-        {:error, :invalid_control_url}
+      {:error, e} when e in posix() ->
+        Logger.debug("[get_device_address][#{__MODULE__}] get_device_address#{inspect(e)}")
 
       e ->
-        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
-        {:error, :no_wanipconnection}
+        Logger.debug("[get_device_address][#{__MODULE__}] get_device_address#{inspect(e)}")
+        :error
     end
   end
 
-  # "urn:schemas-upnp-org:device:WANConnectionDevice:1"
-  # "urn:schemas-upnp-org:device:WANConnectionDevice:2"
+  @doc """
+  message => XML-formatted message that can be sent to a UPnP device to request its external IP address.
+  The message belongs to the UPnP service "WANIPConnection", which is used to manage internet
+  connection settings on the device.
+  `GetExternalIPAddress` => operation defined by upnp
+  ` WANIPConnection service. ` => service provided by some Internet Gateway Devices (IGDs) that
+  allow a device on a home network to request the public IP address of the IGD. pat of upnp protocol
+  allows a device to request the public IP address of the IGD, which can be used to set up port
+   forwarding or to allow the device to be accessed from the Internet.
+  """
+  def get_external_address(%NatUpnp{service_url: url, version: ver}) do
+    message = """
+      <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
+      </u:GetExternalIPAddress>
+    """
 
-  def get_connection_device(device, root_url, version) do
-    case get_device(device, version) do
-      {:ok, wan_conn_device} ->
-        get_connection_url(wan_conn_device, root_url, version)
+    # case ver do
+    #   "1" ->
 
-      _ ->
-        {:error, :no_wanconnection_device}
-    end
-  end
+    #   "2" ->
+    #     nil
+    # end
 
-  def get_wan_device(device, root_url, version) do
-    case get_device(device, version) do
-      {:ok, device1} ->
-        get_connection_device(device1, root_url, version)
+    case __MODULE__.soap_request(url, "GetExternalIPAddress", message) do
+      {:ok, body} ->
+        {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
 
-      _ ->
-        {:error, :no_wan_device}
+        [infos | _] =
+          :xmerl_xpath.string(
+            "//s:Envelope/s:Body/*[local-name() = 'GetExternalIPAddressResponse']",
+            xml
+          )
+
+        ip = extract_txt(:xmerl_xpath.string("NewExternalIPAddress/text()", infos))
+
+        {:ok, ip}
+
+      error ->
+        error
     end
   end
 end

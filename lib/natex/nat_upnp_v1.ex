@@ -244,7 +244,7 @@
 #         protocol,
 #         internal_port,
 #         external_port,
-#         lifetime \\ @recommended_mapping_lifetime_seconds
+#         lifetime \\ @default_mapping_lifetime
 #       ) do
 #     protocol = protocol(protocol)
 

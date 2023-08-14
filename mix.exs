@@ -24,8 +24,7 @@ defmodule ElixirNat.MixProject do
         :xmerl_xpath,
         :httpc,
         :inets
-      ],
-      mod: {Natex.Application, []}
+      ]
     ]
   end
 

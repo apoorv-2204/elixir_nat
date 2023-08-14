@@ -130,12 +130,12 @@ defmodule Natex.NatupnpV2 do
         {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
         [device | _] = :xmerl_xpath.string("//device", xml)
 
-        case Utils.device_type(Device) do
+        case Utils.device_type(device) do
           ^igd_device_upnp1 ->
-            Utils.get_wan_device(Device, RootUrl)
+            Utils.get_wan_device(Device, RootUrl, "2")
 
           ^igd_device_upnp2 ->
-            Utils.get_wan_device(Device, RootUrl)
+            Utils.get_wan_device(Device, RootUrl, "2")
 
           e ->
             Logger.debug("Error: [#{__MODULE__}] [get_service_url] #{inspect(e)}")
@@ -150,19 +150,127 @@ defmodule Natex.NatupnpV2 do
     end
   end
 
-  def add_port_mapping(context, protocol, internal_port, external_port, mapping_lifetime) do
-    {:ok, :since, :internal_port, :external_port, :mapping_lifetime}
+  def status_info(%Natex.NatUPnP{service_url: url}) do
+    msg = """
+    <u:GetStatusInfo xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1"></u:GetStatusInfo>
+    """
+
+    case Utils.soap_request(url, "GetStatusInfo", msg) do
+      {:ok, body} ->
+        {xml, _} = :xmerl_scan.string(body, space: :normalize)
+        [infos | _] = :xmerl_xpath.string("//s:Envelope/s:Body/u:GetStatusInfoResponse", xml)
+        status = Utils.extract_txt(:xmerl_xpath.string("NewConnectionStatus/text()", infos))
+
+        last_conn_error =
+          Utils.extract_txt(:xmerl_xpath.string("NewLastConnectionError/text()", infos))
+
+        up_time = Utils.extract_txt(:xmerl_xpath.string("NewUptime/text()", infos))
+        {status, last_conn_error, up_time}
+        {:ok, status, last_conn_error}
+
+      e ->
+        Logger.debug("Error: [#{__MODULE__}] [status_info] #{inspect(e)}")
+        e
+    end
+  end
+
+  def add_mapping(
+        context,
+        protocol,
+        internal_port,
+        external_port,
+        lifetime \\ @default_mapping_lifetime
+      ) do
+    case external_port do
+      0 ->
+        random_mapping(
+          context,
+          protocol,
+          internal_port,
+          lifetime,
+          _error = nil,
+          _attempts = @default_attempts
+        )
+
+      _ ->
+        do_add_mapping(Ctx, Protocol, InternalPort, ExternalPort, Lifetime)
+    end
+  end
+
+  def random_mapping(_, _, _, _lifetime, _error, 0), do: {:error, :no_available_port}
+
+  def random_mapping(context, protocol, internal_port, lifetime, error, attempts) do
+    external_port = Enum.random(41000..62000)
+
+    case do_add_mapping(context, protocol, internal_port, external_port, lifetime) do
+      {:ok, _} ->
+        {:ok, external_port}
+
+      {:error, :conflict} ->
+        random_mapping(context, protocol, internal_port, lifetime, error, attempts - 1)
+
+      e ->
+        Logger.debug("Error: [#{__MODULE__}] [random_mapping] #{inspect(e)}")
+        e
+    end
+  end
+
+  def do_add_mapping(
+        nat_ctx = %Natex.NatUPnP{ip: ip, service_url: url},
+        protocol,
+        internal_port,
+        external_port,
+        lifetime
+      ) do
+    description = "#{ip}_#{protocol}_#{Integer.to_string(internal_port)}"
+
+    msg = """
+      <u:AddAnyPortMapping xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:2">
+        <NewRemoteHost></NewRemoteHost>
+        <NewExternalPort>#{Integer.to_string(external_port)}</NewExternalPort>
+        <NewProtocol>#{protocol}</NewProtocol>
+        <NewInternalPort>#{Integer.to_string(internal_port)}</NewInternalPort>
+        <NewInternalClient>#{ip}</NewInternalClient>
+        <NewEnabled>1</NewEnabled>
+        <NewPortMappingDescription>#{description}</NewPortMappingDescription>
+        <NewLeaseDuration>#{Integer.to_string(lifetime)}</NewLeaseDuration>
+      </u:AddAnyPortMapping>
+    """
+
+    with {:ok, ip_addr} <- :inet.parse_address(ip),
+         start <- Utils.timestamp(),
+         {:ok, body} <-
+           :Utils.soap_request(url, "AddAnyPortMapping", msg, socket_opts: [ip: ip_addr]) do
+      {xml, _} = :xmerl_scan.string(body, space: :normalize)
+
+      [resp | _] = :xmerl_xpath.string("//s:Envelope/s:Body/u:AddAnyPortMappingResponse", xml)
+
+      reserved_port = extract_txt(:xmerl_xpath.string("NewReservedPort/text()", resp))
+
+      now = :Utils.timestamp()
+      mapping_lifetime = lifetime - (now - start)
+
+      {:ok, now, internal_port, String.to_integer(reserved_port), mapping_lifetime}
+    else
+      {:error, :einval} ->
+        {:error, :einval}
+
+      error when lifetime > 0 ->
+        case only_permanent_lease_supported(error) do
+          true ->
+            Logger.debug("UPNP: only permanent lease supported")
+            do_add_mapping(nat_ctx, protocol, internal_port, external_port, 0)
+
+          false ->
+            error
+        end
+
+      _ ->
+        e
+    end
   end
 
   def delete_port_mapping(context, protocol, internal_port, external_port) do
     :ok
-  end
-
-  def get_external_address(context) do
-    {:ok, :ext_address}
-  end
-
-  def get_internal_address(context) do
-    {:ok, :int_address}
   end
 end
