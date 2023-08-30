@@ -1,74 +1,63 @@
 defmodule Natex.NATScan do
   @cache_file Application.compile_env(:natex, :cache_file, "nat_cache")
 
-  alias Natex.NATCache
-  alias Natex.Intercepts.GenUdp
-  alias Natex.Intercepts.Httpc
-
-  alias Natex.Intercepts
+  alias Natex.NAT
   alias Natex.NatupnpV1
   alias Natex.NatupnpV2
   alias Natex.Natpmp
 
   require Logger
 
-  def start() do
-    {:ok, host_name} = :inet.gethostname()
-    NATCache.start([{:file, host_name}, {:get, false}])
-
-    # ok = intercept:add(gen_udp, gen_udp_intercepts, [{{send, 4}, send}]),
-    # ok = intercept:add(httpc, httpc_intercepts, [{{request, 1}, request}, {{request, 4}, request}]),
-    # ok = intercept:add(inet_ext, inet_ext_intercepts, [{{get_internal_address, 1}, get_internal_address}]),
-    # ok = intercept:clean(gen_udp),
-    # ok = intercept:clean(httpc),
-    # ok = intercept:clean(inet_ext),
-
-    # _ = natupnp_v1(),
-    # _ = natupnp_v2(),
-    # _ = natpmp(),
-
-    NATCache.stop()
-  end
-
   def natupnp_v1() do
     Logger.debug("[NatupnpV1] discovering")
 
-    case NatupnpV1.discover() do
-      {:ok, context} ->
-        Logger.debug("[NatupnpV1] discovered #{inspect(context)}")
-
-        case NatupnpV1.add_port_mapping(context, :tcp, 8333, 8333, 3600) do
-          {:ok, since, internal_port, external_port, mapping_lifetime} = ok ->
-            Logger.debug("[NatupnpV1] added port mapping #{inspect(ok)}")
-
-            case NatupnpV1.delete_port_mapping(context, :tcp, 8333, 8333) do
-              :ok ->
-                Logger.debug("[NatupnpV1] deleted port mapping")
-
-              {:error, reason} ->
-                Logger.debug("[NatupnpV1] failed to delete port mapping #{inspect(reason)}")
-            end
-
-          {:error, reason} ->
-            Logger.debug("[NatupnpV1] failed to add port mapping #{inspect(reason)}")
-        end
-
-        case NatupnpV1.get_external_address(context) do
-          {:ok, ext_address} ->
-            Logger.debug("[NatupnpV1] got external address #{inspect(ext_address)}")
-
-          {:error, reason} ->
-            Logger.debug("[NatupnpV1] failed to get external address #{inspect(reason)}")
-        end
-
-        case NatupnpV1.get_internal_address(context) do
-          {:ok, int_address} ->
-            Logger.debug("[NatupnpV1] got internal address #{inspect(int_address)}")
-        end
-
-      {:error, reason} ->
-        Logger.debug("[NatupnpV1] failed to discover #{inspect(reason)}")
+    with {:ok, ctx} <- NatupnpV1.discover(),
+         {:ok, since, internal_port, external_port, mapping_lifetime} <-
+           NatupnpV1.add_port_mapping(ctx, :tcp, 8333, 8333, 3600),
+         :ok <- NatupnpV1.delete_port_mapping(ctx, :tcp, 8333, 8333),
+         {:ok, ext_address} <- NatupnpV1.get_external_address(ctx),
+         {:ok, int_address} <- NatupnpV1.get_internal_address(ctx) do
+    else
+      e ->
+        Logger.debug("[NatupnpV1] failed to add port mapping #{inspect(e)}")
     end
+
+    # case NatupnpV1.discover() do
+    #   {:ok, context} ->
+    #     Logger.debug("[NatupnpV1] discovered #{inspect(context)}")
+
+    #     case NatupnpV1.add_port_mapping(context, :tcp, 8333, 8333, 3600) do
+    #       {:ok, since, internal_port, external_port, mapping_lifetime} = ok ->
+    #         Logger.debug("[NatupnpV1] added port mapping #{inspect(ok)}")
+
+    #         case NatupnpV1.delete_port_mapping(context, :tcp, 8333, 8333) do
+    #           :ok ->
+    #             Logger.debug("[NatupnpV1] deleted port mapping")
+
+    #           {:error, reason} ->
+    #             Logger.debug("[NatupnpV1] failed to delete port mapping #{inspect(reason)}")
+    #         end
+
+    #       {:error, reason} ->
+    #         Logger.debug("[NatupnpV1] failed to add port mapping #{inspect(reason)}")
+    #     end
+
+    #     case NatupnpV1.get_external_address(context) do
+    #       {:ok, ext_address} ->
+    #         Logger.debug("[NatupnpV1] got external address #{inspect(ext_address)}")
+
+    #       {:error, reason} ->
+    #         Logger.debug("[NatupnpV1] failed to get external address #{inspect(reason)}")
+    #     end
+
+    #     case NatupnpV1.get_internal_address(context) do
+    #       {:ok, int_address} ->
+    #         Logger.debug("[NatupnpV1] got internal address #{inspect(int_address)}")
+    #     end
+
+    #   {:error, reason} ->
+    #     Logger.debug("[NatupnpV1] failed to discover #{inspect(reason)}")
+    # end
   end
 
   def natupnp_v2() do

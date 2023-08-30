@@ -171,8 +171,17 @@ defmodule Natex.Utils do
   # https://www.erlang.org/doc/man/re#split-3
   def split(string, pattern), do: :re.split(string, pattern, return: :list)
 
-  def protocol(protocol) do
+  def protocol(protocol) when is_atom(protocol) do
     case protocol in [:tcp, :udp] do
+      true -> :ok
+      false -> {:error, :bad_protocol}
+    end
+
+    protocol |> Atom.to_string() |> String.upcase()
+  end
+
+  def protocol(protocol) do
+    case protocol in ["tcp", "udp"] do
       true -> :ok
       false -> {:error, :bad_protocol}
     end
@@ -292,12 +301,12 @@ defmodule Natex.Utils do
   def get_device_address(%Natex.NatUPnP{service_url: url}) do
     # https://www.erlang.org/doc/man/uri_string#parse-1
     # https://hexdocs.pm/elixir/1.14.1/URI.html#parse/1
-    with {:ok, %URI{host: host}} <- URI.parse(url),
+    with %URI{host: host} when not is_nil(host) <- URI.parse(url),
          {:ok, ip} <- :inet.getaddr(host, :inet) do
       {:ok, :inet.ntoa(ip)}
     else
-      {:error, e} when e in posix() ->
-        Logger.debug("[get_device_address][#{__MODULE__}] get_device_address#{inspect(e)}")
+      # {:error, e} when e in posix() ->
+      #   Logger.debug("[get_device_address][#{__MODULE__}] get_device_address#{inspect(e)}")
 
       e ->
         Logger.debug("[get_device_address][#{__MODULE__}] get_device_address#{inspect(e)}")
@@ -315,7 +324,7 @@ defmodule Natex.Utils do
   allows a device to request the public IP address of the IGD, which can be used to set up port
    forwarding or to allow the device to be accessed from the Internet.
   """
-  def get_external_address(%NatUpnp{service_url: url, version: ver}) do
+  def get_external_address(%Natex.NatUPnP{service_url: url, version: ver}) do
     message = """
       <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
       </u:GetExternalIPAddress>

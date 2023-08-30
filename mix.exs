@@ -31,7 +31,8 @@ defmodule ElixirNat.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:inet_ext, "~> 1.0"}
+      {:inet_ext, "~> 1.0"},
+      {:inet_cidr, "~> 1.0.2", hex: :erl_cidr}
     ]
   end
 end

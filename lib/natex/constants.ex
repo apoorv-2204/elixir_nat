@@ -22,6 +22,12 @@ defmodule Natex.Constants do
       @wan_device_upnp2 "urn:schemas-upnp-org:device:WANDevice:2"
 
       require Logger
+
+      @nat_tries 3
+      @nat_initial_ms 250
+      @lifetime 3600
+
+      @pmp_port 5351
     end
   end
 end

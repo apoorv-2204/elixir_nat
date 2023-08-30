@@ -1,18 +1,4 @@
 %{
-  "I": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "Inet": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "InetCidr": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "Inet_CID": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "Inet_CIDR": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "Inet_Cidr": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "bunt": {:hex, :bunt, "0.2.1", "e2d4792f7bc0ced7583ab54922808919518d0e57ee162901a16a1b6664ef3b14", [:mix], [], "hexpm", "a330bfb4245239787b15005e66ae6845c9cd524a288f0d141c148b02603777a5"},
-  "cidr": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "credo": {:hex, :credo, "1.6.7", "323f5734350fd23a456f2688b9430e7d517afb313fbd38671b8a4449798a7854", [:mix], [{:bunt, "~> 0.2.1", [hex: :bunt, repo: "hexpm", optional: false]}, {:file_system, "~> 0.2.8", [hex: :file_system, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm", "41e110bfb007f7eda7f897c10bf019ceab9a0b269ce79f015d54b0dcf4fc7dd3"},
-  "erl2ex": {:hex, :erl2ex, "0.0.9", "626cbdf8a23f44b8a70be2ae0c8892fd9c1b14eacb8fe94491bcc88a1c2bd7ae", [:mix], [], "hexpm", "4e49c461ecffc33986bb72a43ae87211fb33fed39077fb522c381b884d189514"},
-  "file_system": {:hex, :file_system, "0.2.10", "fb082005a9cd1711c05b5248710f8826b02d7d1784e7c3451f9c1231d4fc162d", [:mix], [], "hexpm", "41195edbfb562a593726eda3b3e8b103a309b733ad25f3d642ba49696bf715dc"},
   "inet_cidr": {:hex, :erl_cidr, "1.0.2", "4814a5b78b969a5e069b0cecbb102622ab0c459b690053ed94543cd529915a43", [:rebar3], [], "hexpm", "97046492e5c5be0d8b92cd275980d667a8d28d9e79b2305828e358cc7d30a935"},
   "inet_ext": {:hex, :inet_ext, "1.0.0", "40a82557082827a2dc403ee7007bb389869f347465fb9d25d0abf0769b247c34", [:rebar3], [{:inet_cidr, "~> 1.0.2", [hex: :erl_cidr, repo: "hexpm", optional: false]}], "hexpm", "62a8aad524b798de3e1617e2ccfad212cb4cce971574f1adc260441ed99a250c"},
-  "inetcidr": {:git, "https://github.com/cobenian/inet_cidr", "224a081c2e5c24ccd4a5f9dbccfa1847467788c3", [branch: "main"]},
-  "intercept": {:hex, :intercept, "1.0.0", "1f6c725e6fc070720643bd4d97ee53b1209365c80e520e1f5a1acb36712a7eb5", [:rebar3], [], "hexpm", "fc5f5e26a571637b0b80119fe2f1e83dddeac8078bd76279c015474af432b32e"},
-  "jason": {:hex, :jason, "1.4.0", "e855647bc964a44e2f67df589ccf49105ae039d4179db7f6271dfd3843dc27e6", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121"},
 }

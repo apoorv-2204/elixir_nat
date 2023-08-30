@@ -8,7 +8,7 @@ defmodule Natex.NatupnpV2 do
   use Natex.Constants
 
   def discover() do
-    Application.start(:inets)
+    # Application.start(:inets)
 
     # open port zero https://www.erlang.org/doc/man/gen_udp.html#type-option
     msearch_msg =
@@ -28,6 +28,8 @@ defmodule Natex.NatupnpV2 do
   def do_discover(_socket, _msg, 0), do: {:error, :timeout}
 
   def do_discover(socket, msg, attempts) do
+    # https://www.erlang.org/doc/man/inet#setopts-2
+    # https://www.erlang.org/doc/man/gen_udp#type-option
     :inet.setopts(socket, active: true)
     :gen_udp.send(socket, @multicast_ip, @multicast_port, msg)
 
@@ -57,7 +59,7 @@ defmodule Natex.NatupnpV2 do
           {:ok, :inet.ip4_address(), String.t()} | {:error, :timeout}
   def await_reply(socket, timer) do
     receive do
-      {:udp, ^socket, device_internal_ip, _replying_port, packet} ->
+      {:udp, ^socket, igd_internal_ip, _replying_port, packet} ->
         Logger.debug("Received: #{inspect(packet)}")
 
         case parse(packet) do
@@ -65,7 +67,7 @@ defmodule Natex.NatupnpV2 do
             await_reply(socket, timer)
 
           {:ok, location} ->
-            {:ok, device_internal_ip, location}
+            {:ok, igd_internal_ip, location}
         end
     after
       timer ->
@@ -126,7 +128,7 @@ defmodule Natex.NatupnpV2 do
     igd_device_upnp2 = @igd_device_upnp2
 
     case :httpc.request(root_url) do
-      {ok, {{_, 200, _}, _, body}} ->
+      {:ok, {{_, 200, _}, _, body}} ->
         {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
         [device | _] = :xmerl_xpath.string("//device", xml)
 
@@ -245,7 +247,7 @@ defmodule Natex.NatupnpV2 do
 
       [resp | _] = :xmerl_xpath.string("//s:Envelope/s:Body/u:AddAnyPortMappingResponse", xml)
 
-      reserved_port = extract_txt(:xmerl_xpath.string("NewReservedPort/text()", resp))
+      reserved_port = Utils.extract_txt(:xmerl_xpath.string("NewReservedPort/text()", resp))
 
       now = :Utils.timestamp()
       mapping_lifetime = lifetime - (now - start)
@@ -265,12 +267,80 @@ defmodule Natex.NatupnpV2 do
             error
         end
 
-      _ ->
+      e ->
         e
     end
   end
 
-  def delete_port_mapping(context, protocol, internal_port, external_port) do
-    :ok
+  def only_permanent_lease_supported({:error, {:http_error, "500", body}}) do
+    {xml, _} = :xmerl_scan.string(body, space: :normalize)
+    [error | _] = :xmerl_xpath.string("//s:Envelope/s:Body/s:Fault/detail/UPnPError", xml)
+    err_code = Utils.extract_txt(:xmerl_xpath.string("errorCode/text()", error))
+
+    err_code == "725"
+  end
+
+  def only_permanent_lease_supported(_), do: false
+
+  def delete_port_mapping(
+        %Natex.NatUPnP{ip: ip, service_url: url},
+        protocol,
+        _internal_port,
+        external_port
+      ) do
+    proto = Utils.protocol(protocol)
+
+    msg = """
+    <u:DeletePortMapping xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
+      <NewRemoteHost></NewRemoteHost>
+      <NewExternalPort>#{Integer.to_string(external_port)}</NewExternalPort>
+      <NewProtocol>#{proto}</NewProtocol>
+    </u:DeletePortMapping>
+    """
+
+    {:ok, igaddr} = :inet.parse_address(ip)
+
+    case Utils.soap_request(url, "DeletePortMapping", msg, socket_opts: [ip: igaddr]) do
+      {:ok, body} ->
+        Logger.debug("DeletePortMapping: #{inspect(body)}")
+        :ok
+
+      e ->
+        Logger.debug("Error: [#{__MODULE__}] [delete_port_mapping] #{inspect(e)}")
+        e
+    end
+  end
+
+  def get_port_mapping(%Natex.NatUPnP{ip: ip, service_url: url}, protocol, external_port) do
+    proto = Utils.protocol(protocol)
+
+    msg = """
+    <u:GetSpecificPortMappingEntry xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
+      <NewRemoteHost></NewRemoteHost>
+      <NewExternalPort>#{Integer.to_string(external_port)}</NewExternalPort>
+      <NewProtocol>#{proto}</NewProtocol>
+    </u:GetSpecificPortMappingEntry>
+    """
+
+    {:ok, igaddr} = :inet.parse_address(ip)
+
+    case Utils.soap_request(url, "GetSpecificPortMappingEntry", msg, socket_opts: [ip: igaddr]) do
+      {:ok, body} ->
+        {xml, _} = :xmerl_scan.string(body, space: :normalize)
+
+        [info | _] =
+          :xmerl_xpath.string("//s:Envelope/s:Body/u:GetSpecificPortMappingEntryResponse", xml)
+
+        new_internal_port = Utils.extract_txt(:xmerl_xpath.string("NewInternalPort/text()", info))
+
+        new_internal_client =
+          Utils.extract_txt(:xmerl_xpath.string("NewInternalClient/text()", info))
+
+        {:ok, String.to_integer(new_internal_port), new_internal_client}
+
+      e ->
+        Logger.debug("Error: [#{__MODULE__}] [get_port_mapping] #{inspect(e)}")
+        e
+    end
   end
 end

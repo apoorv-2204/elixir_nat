@@ -5,6 +5,14 @@ defmodule Natex.Errors do
   # An atom that is named from the POSIX error codes used in Unix, and in the runtime libraries of most C compilers.
   defmacro __using__(_) do
     quote do
+      @type pmp_error() ::
+              :unsupported_version
+              | :not_authorized
+              | :network_failure
+              | :out_of_resources
+              | :unsupported_opcode
+              | :bad_response
+
       @posix [
         :eaddrinuse,
         :eaddrnotavail,
