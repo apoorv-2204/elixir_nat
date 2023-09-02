@@ -1,5 +1,5 @@
 defmodule Natex.NatupnpV1 do
-  @moduledoc"""
+  @moduledoc """
   The MX field in an SSDP (Simple Service Discovery Protocol) message is used to specify the maximum
   number of seconds that a device should wait before responding to the message. It is used in M-SEARCH
   messages to request that devices search for and return information about available services. In the
@@ -95,7 +95,6 @@ defmodule Natex.NatupnpV1 do
 
   require Logger
   alias Natex.Utils
-  alias Natex.NatUPnP
   use Natex.Constants
 
   def msearch_msg() do
@@ -112,7 +111,8 @@ defmodule Natex.NatupnpV1 do
 
   def discover do
     # Application.start(:inets)
-    {:ok, socket} = :gen_udp.open(0, [:inet, :binary, active: true])
+    {:ok, socket} = :gen_udp.open(0, [:inet, :binary, active: :once])
+    # {ok, Sock} = gen_udp:open(0, [{active, once}, inet, binary]),
 
     try do
       do_discover(socket, msearch_msg(), _attempts = 3)
@@ -123,7 +123,7 @@ defmodule Natex.NatupnpV1 do
     end
   end
 
-  @doc"""
+  @doc """
     Sends the M-SEARCH request to the multicast address(239.255.255.250,1900), from port 0.
     timeout= simple exponential backoff.left shift operator incresing the value.
     Wait for the reply from IGD via loop impls a recieve clause.
@@ -142,8 +142,10 @@ defmodule Natex.NatupnpV1 do
     # https://www.erlang.org/doc/man/gen_udp#send-4
     :ok = :gen_udp.send(socket, _dest = @multicast_ip, @multicast_port, m_search)
 
-    with {:ok, ip, location} <- loop(socket, timeout),
-         {:ok, url} <- get_service_url(to_string(location)),
+    # :ok = :gen_udp.send(socket, String.to_charlist("239.255.255.250", 1900, :erlang.iolist_to_binary(m_search))
+
+    with {:ok, ip, location} <- await_reply(socket, timeout),
+         {:ok, url} <- get_service_url(location),
          my_ip <- :inet.getaddr(ip, :inet) do
       # https://www.erlang.org/doc/man/inet#getaddr-2
       {:ok, %Natex.NatUPnP{service_url: url, ip: my_ip}}
@@ -165,43 +167,76 @@ defmodule Natex.NatupnpV1 do
         Logger.debug("Received: #{inspect(reply_msg)}")
 
         case parse(reply_msg) do
+          {:ok, location} ->
+            debug_log({"await_reply", {igd_internal_ip, location}})
+
+            {:ok, igd_internal_ip, location}
+
           {:error, e} ->
             Logger.debug("parse: #{inspect(e)}")
             await_reply(socket, timer)
-
-          {:ok, location} ->
-            {:ok, igd_internal_ip, location}
         end
     after
       timer ->
         Logger.debug("Timeout")
         {:error, :timeout}
     end
+  end
 
+  @spec parse(data :: binary()) :: {:ok, binary()} | {:error, :st_not_found | :no_location}
+  def parse(data) do
+    header = Utils.get_headers(data)
+    service_type = Map.get(header, "St", :st_not_found)
+    location = Map.get(header, :Location, :location_not_found)
+    expected_st = @st1
 
-    def parse(data) do
-      header = Utils.get_headers(data)
-      service_type = Map.get(header, "ST", :st_not_found)
-      location = Map.get(header, "LOCATION", :location_not_found)
-      expected_st = @st1
+    case {service_type, location} do
+      {_service_type, :location_not_found} ->
+        {:error, :no_location}
 
-      case {service_type, location} do
-        {_service_type, :location_not_found} ->
-          {:error, :no_location}
+      {:st_not_found, _} ->
+        {:error, :st_not_found}
 
-        {^expected_st, location} ->
-          {:ok, String.trim(location)}
-
-        {:st_not_found, _} ->
-          {:error, :st_not_found}
-      end
+      {^expected_st, location} ->
+        debug_log({"Found location", location})
+        {:ok, String.trim(location)}
     end
+  end
+
+  def get_service_url(root_url) do
+    # query = :erlang.binary_to_list(root_url)
+    query = String.to_charlist(root_url)
+
+    case :httpc.request(query) do
+      {:ok, {{_, 200, _}, _, body}} ->
+        {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
+        [device | _] = :xmerl_xpath.string("//device", xml)
+
+        case device_type(device) do
+          "urn:schemas-upnp-org:device:InternetGatewayDevice:1" ->
+            get_wan_device(device, root_url)
+
+          _ ->
+            {:error, :no_gateway_device}
+        end
+
+      {:ok, %{status_code: status_code}} ->
+        {:error, Integer.to_string(status_code)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def debug_log(ctx) do
+    Utils.debug_log({"[UPNPV1]", ctx})
+    ctx
   end
 
   def get_device_address(%Natex.NatUPnP{service_url: url}) do
     # https://www.erlang.org/doc/man/uri_string#parse-1
     # https://hexdocs.pm/elixir/1.14.1/URI.html#parse/1
-    with {:ok, %URI{host: host}} <- URI.parse(url),
+    with %URI{host: host} <- URI.parse(url),
          {:ok, ip} <- :inet.getaddr(host, :inet) do
       {:ok, :inet.ntoa(ip)}
     else
@@ -214,7 +249,7 @@ defmodule Natex.NatupnpV1 do
     end
   end
 
-  @doc"""
+  @doc """
   message => XML-formatted message that can be sent to a UPnP device to request its external IP address.
   The message belongs to the UPnP service "WANIPConnection", which is used to manage internet
   connection settings on the device.
@@ -230,7 +265,7 @@ defmodule Natex.NatupnpV1 do
       </u:GetExternalIPAddress>
     """
 
-    case Helpers.soap_request(url, "GetExternalIPAddress", message) do
+    case Utils.soap_request(url, "GetExternalIPAddress", message) do
       {:ok, body} ->
         {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
 
@@ -275,7 +310,7 @@ defmodule Natex.NatupnpV1 do
     do: error
 
   defp random_port_mapping(context, protocol, internal_port, lifetime, _last_error, attempts) do
-    external_port = Helpers.random_port()
+    external_port = Utils.random_port()
 
     case do_add_port_mapping(context, protocol, internal_port, external_port, lifetime) do
       {:ok, _, _, _, _} ->
@@ -309,12 +344,12 @@ defmodule Natex.NatupnpV1 do
       </u:AddPortMapping>
     """
 
-    {ok, iaddr} = :inet.parse_address(ip)
-    start = Helpers.timestamp()
+    {:ok, iaddr} = :inet.parse_address(ip)
+    start = Utils.timestamp()
 
-    case Helpers.soap_request(url, "AddPortMapping", msg, socket_opts: [ip: iaddr]) do
+    case Utils.soap_request(url, "AddPortMapping", msg, socket_opts: [ip: iaddr]) do
       {:ok, _} ->
-        now = Helpers.timestamp()
+        now = Utils.timestamp()
 
         mapping_lifetime =
           if lifetime > 0 do
@@ -340,7 +375,7 @@ defmodule Natex.NatupnpV1 do
     end
   end
 
-  defp only_permanent_lease_supported({error, {http_error, "500", body}}) do
+  defp only_permanent_lease_supported({:error, {:http_error, "500", body}}) do
     {xml, _} = :xmerl_scan.string(body, space: :normalize)
     [error_node | _] = :xmerl_xpath.string("//s:Envelope/s:Body/s:Fault/detail/UPnPError", xml)
     error_code = Utils.extract_txt(:xmerl_xpath.string("errorCode/text()", error_node))
@@ -369,7 +404,7 @@ defmodule Natex.NatupnpV1 do
       </u:DeletePortMapping>
     """
 
-    {ok, iaddr} = :inet.parse_address(ip)
+    {:ok, iaddr} = :inet.parse_address(ip)
 
     case Utils.soap_request(url, "DeletePortMapping", msg, socket_opts: [ip: iaddr]) do
       {:ok, _} -> :ok
@@ -388,9 +423,9 @@ defmodule Natex.NatupnpV1 do
       </u:GetSpecificPortMappingEntry>
     """
 
-    {ok, iaddr} = :inet.parse_address(ip)
+    {:ok, iaddr} = :inet.parse_address(ip)
 
-    case Helpers.soap_request(url, "GetSpecificPortMappingEntry", msg, socket_opts: [ip: iaddr]) do
+    case Utils.soap_request(url, "GetSpecificPortMappingEntry", msg, socket_opts: [ip: iaddr]) do
       {:ok, body} ->
         {xml, _} = :xmerl_scan.string(body, space: :normalize)
 
@@ -415,7 +450,7 @@ defmodule Natex.NatupnpV1 do
     msg =
       ~s(<u:GetStatusInfo xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1"></u:GetStatusInfo>)
 
-    case Helpers.soap_request(url, "GetStatusInfo", msg) do
+    case Utils.soap_request(url, "GetStatusInfo", msg) do
       {:ok, body} ->
         {xml, _} = :xmerl_scan.string(body, space: :normalize)
         [infos | _] = :xmerl_xpath.string("//s:Envelope/s:Body/u:GetStatusInfoResponse", xml)
@@ -431,28 +466,6 @@ defmodule Natex.NatupnpV1 do
       e ->
         Logger.debug("[status_info][#{__MODULE__}] #{inspect(e)}")
         e
-    end
-  end
-
-  defp get_service_url(root_url) do
-    case :httpc.request(root_url) do
-      {ok, {{_, 200, _}, _, Body}} ->
-        {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
-        [device | _] = :xmerl_xpath.string("//device", xml)
-
-        case device_type(device) do
-          "urn:schemas-upnp-org:device:InternetGatewayDevice:1" ->
-            get_wan_device(device, root_url)
-
-          _ ->
-            {:error, :no_gateway_device}
-        end
-
-      {:ok, %{status_code: status_code}} ->
-        {:error, Integer.to_string(status_code)}
-
-      {:error, _reason} ->
-        {:error, _reason}
     end
   end
 
@@ -488,7 +501,7 @@ defmodule Natex.NatupnpV1 do
         Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
         {:error, :invalid_control_url}
 
-      _ ->
+      e ->
         Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
         {:error, :no_wanipconnection}
     end
@@ -503,11 +516,11 @@ defmodule Natex.NatupnpV1 do
 
   defp find_device([device | rest], device_type) do
     case device_type(device) do
-      device_type ->
-        {:ok, device}
-
-      _ ->
+      nil ->
         find_device(rest, device_type)
+
+      _device_type ->
+        {:ok, device}
     end
   end
 
@@ -520,11 +533,11 @@ defmodule Natex.NatupnpV1 do
 
   defp find_service([s | rest], service_type) do
     case Utils.extract_txt(:xmerl_xpath.string("serviceType/text()", s)) do
-      service_type ->
-        {:ok, s}
-
-      _ ->
+      nil ->
         find_service(rest, service_type)
+
+      _service_type ->
+        {:ok, s}
     end
   end
 

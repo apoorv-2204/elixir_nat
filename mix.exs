@@ -5,7 +5,7 @@ defmodule ElixirNat.MixProject do
     [
       app: :natex,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      # elixir: "~> 1.14",
       config_path: "config/config.exs",
       build_path: "_build",
       deps_path: "deps",
@@ -20,10 +20,9 @@ defmodule ElixirNat.MixProject do
     [
       extra_applications: [
         :logger,
-        :xmerl_scan,
-        :xmerl_xpath,
-        :httpc,
-        :inets
+        :inets,
+        :xmerl,
+        :public_key
       ]
     ]
   end
@@ -32,7 +31,8 @@ defmodule ElixirNat.MixProject do
   defp deps do
     [
       {:inet_ext, "~> 1.0"},
-      {:inet_cidr, "~> 1.0.2", hex: :erl_cidr}
+      {:inet_cidr, "~> 1.0.2", hex: :erl_cidr},
+      {:castore, "~> 1.0", override: true}
     ]
   end
 end

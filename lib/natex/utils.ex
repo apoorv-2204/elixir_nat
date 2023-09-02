@@ -355,4 +355,8 @@ defmodule Natex.Utils do
         error
     end
   end
+
+  def debug_log(contex) do
+    Logger.debug("[#{inspect(contex)}]")
+  end
 end

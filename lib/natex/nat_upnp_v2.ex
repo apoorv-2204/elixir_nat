@@ -4,7 +4,7 @@ defmodule Natex.NatupnpV2 do
   """
   alias Natex.Utils
   alias Natex.NatUPnP
-  alias Natex.Application
+  # alias Natex.Application
   use Natex.Constants
 
   def discover() do
@@ -12,7 +12,7 @@ defmodule Natex.NatupnpV2 do
 
     # open port zero https://www.erlang.org/doc/man/gen_udp.html#type-option
     msearch_msg =
-      ~s(M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nST: #{@st2}\r\nMX: 3\r\n\r\n)
+      ~s(M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\nST: #{@st2}\r\nMX: 3\r\n\r\n)
 
     {:ok, socket} = :gen_udp.open(0, [:binary, :inet, active: true])
 
@@ -82,6 +82,8 @@ defmodule Natex.NatupnpV2 do
     location = Map.get(header, "LOCATION", nil)
     expected_st = @st2
 
+    IO.inspect(binding())
+
     case {service_type, location} do
       {_service_type, nil} ->
         {:error, :no_location}
@@ -127,7 +129,7 @@ defmodule Natex.NatupnpV2 do
     igd_device_upnp1 = @igd_device_upnp1
     igd_device_upnp2 = @igd_device_upnp2
 
-    case :httpc.request(root_url) do
+    case :httpc.request(root_url) |> debug_log() do
       {:ok, {{_, 200, _}, _, body}} ->
         {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
         [device | _] = :xmerl_xpath.string("//device", xml)
@@ -217,6 +219,11 @@ defmodule Natex.NatupnpV2 do
     end
   end
 
+  def debug_log(ctx) do
+    Utils.debug_log({"[UPNPV1]", ctx})
+    ctx
+  end
+
   def do_add_mapping(
         nat_ctx = %Natex.NatUPnP{ip: ip, service_url: url},
         protocol,
@@ -242,14 +249,14 @@ defmodule Natex.NatupnpV2 do
     with {:ok, ip_addr} <- :inet.parse_address(ip),
          start <- Utils.timestamp(),
          {:ok, body} <-
-           :Utils.soap_request(url, "AddAnyPortMapping", msg, socket_opts: [ip: ip_addr]) do
+           Utils.soap_request(url, "AddAnyPortMapping", msg, socket_opts: [ip: ip_addr]) do
       {xml, _} = :xmerl_scan.string(body, space: :normalize)
 
       [resp | _] = :xmerl_xpath.string("//s:Envelope/s:Body/u:AddAnyPortMappingResponse", xml)
 
       reserved_port = Utils.extract_txt(:xmerl_xpath.string("NewReservedPort/text()", resp))
 
-      now = :Utils.timestamp()
+      now = Utils.timestamp()
       mapping_lifetime = lifetime - (now - start)
 
       {:ok, now, internal_port, String.to_integer(reserved_port), mapping_lifetime}
