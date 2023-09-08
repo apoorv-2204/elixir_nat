@@ -1,11 +1,11 @@
-defmodule Natex.NatupnpV2 do
+defmodule Nat.Upnpv2 do
   @moduledoc """
 
   """
-  alias Natex.Utils
-  alias Natex.NatUPnP
-  # alias Natex.Application
-  use Natex.Constants
+  alias Nat.Utils
+  alias Nat.NatUPnP
+  # alias Nat.Application
+  use Nat.Constants
 
   def discover() do
     # Application.start(:inets)
@@ -154,7 +154,7 @@ defmodule Natex.NatupnpV2 do
     end
   end
 
-  def status_info(%Natex.NatUPnP{service_url: url}) do
+  def status_info(%Nat.NatUPnP{service_url: url}) do
     msg = """
     <u:GetStatusInfo xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1"></u:GetStatusInfo>
     """
@@ -225,7 +225,7 @@ defmodule Natex.NatupnpV2 do
   end
 
   def do_add_mapping(
-        nat_ctx = %Natex.NatUPnP{ip: ip, service_url: url},
+        nat_ctx = %Nat.NatUPnP{ip: ip, service_url: url},
         protocol,
         internal_port,
         external_port,
@@ -290,7 +290,7 @@ defmodule Natex.NatupnpV2 do
   def only_permanent_lease_supported(_), do: false
 
   def delete_port_mapping(
-        %Natex.NatUPnP{ip: ip, service_url: url},
+        %Nat.NatUPnP{ip: ip, service_url: url},
         protocol,
         _internal_port,
         external_port
@@ -318,7 +318,7 @@ defmodule Natex.NatupnpV2 do
     end
   end
 
-  def get_port_mapping(%Natex.NatUPnP{ip: ip, service_url: url}, protocol, external_port) do
+  def get_port_mapping(%Nat.NatUPnP{ip: ip, service_url: url}, protocol, external_port) do
     proto = Utils.protocol(protocol)
 
     msg = """

@@ -1,4 +1,4 @@
-defmodule Natex.Errors do
+defmodule Nat.Errors do
   @moduledoc """
   Defines module wide errors
   """

@@ -1,9 +1,9 @@
-defmodule Natex.Utils do
+defmodule Nat.Utils do
   @moduledoc false
 
-  use Natex.Constants
+  use Nat.Constants
   import Bitwise, only: [bsl: 2]
-  use Natex.Errors
+  use Nat.Errors
 
   @doc """
   Returns path in the mutable storage directory
@@ -12,7 +12,7 @@ defmodule Natex.Utils do
   def mut_dir(path) when is_binary(path) do
     [
       get_root_mut_dir(),
-      Application.get_env(:natex, :mut_dir),
+      Application.get_env(:nat, :mut_dir),
       path
     ]
     |> Path.join()
@@ -22,8 +22,8 @@ defmodule Natex.Utils do
   def mut_dir, do: mut_dir("")
 
   def get_root_mut_dir() do
-    case Application.get_env(:natex, :root_mut_dir) do
-      nil -> Application.app_dir(:natex)
+    case Application.get_env(:nat, :root_mut_dir) do
+      nil -> Application.app_dir(:nat)
       dir -> dir
     end
   end
@@ -57,7 +57,7 @@ defmodule Natex.Utils do
   defp should_start?(nil), do: false
 
   defp should_start?(process) do
-    case Application.get_env(Natex, process) do
+    case Application.get_env(Nat, process) do
       nil ->
         true
 
@@ -65,7 +65,7 @@ defmodule Natex.Utils do
         Keyword.get(conf, :enabled, true)
 
       mod when is_atom(mod) ->
-        Natex
+        Nat
         |> Application.get_env(mod, [])
         |> Keyword.get(:enabled, true)
     end
@@ -298,7 +298,7 @@ defmodule Natex.Utils do
     first
   end
 
-  def get_device_address(%Natex.NatUPnP{service_url: url}) do
+  def get_device_address(%Nat.NatUPnP{service_url: url}) do
     # https://www.erlang.org/doc/man/uri_string#parse-1
     # https://hexdocs.pm/elixir/1.14.1/URI.html#parse/1
     with %URI{host: host} when not is_nil(host) <- URI.parse(url),
@@ -324,7 +324,7 @@ defmodule Natex.Utils do
   allows a device to request the public IP address of the IGD, which can be used to set up port
    forwarding or to allow the device to be accessed from the Internet.
   """
-  def get_external_address(%Natex.NatUPnP{service_url: url, version: ver}) do
+  def get_external_address(%Nat.NatUPnP{service_url: url, version: ver}) do
     message = """
       <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
       </u:GetExternalIPAddress>

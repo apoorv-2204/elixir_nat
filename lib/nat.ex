@@ -1,10 +1,9 @@
-defmodule Natex.NAT do
+defmodule Nat do
   @moduledoc false
 
-  alias Natex.NATCache
-  alias Natex.NatupnpV1
-  alias Natex.NatupnpV2
-  alias Natex.Natpmp
+  alias Nat.Upnpv1
+  alias Nat.Upnpv2
+  alias Nat.PMP
 
   @discover_timeout 5_000
 

@@ -3,6 +3,6 @@ import Config
 # Print only errors during test
 config :logger, level: :error
 
-config :natex, :mut_dir, "data_test"
+config :nat, :mut_dir, "data_test"
 
-config :natex, NATCache, enabled: false
+config :nat, NATCache, enabled: false

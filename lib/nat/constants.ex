@@ -1,4 +1,4 @@
-defmodule Natex.Constants do
+defmodule Nat.Constants do
   @moduledoc false
 
   defmacro __using__(_) do
@@ -6,7 +6,7 @@ defmodule Natex.Constants do
       @st1 "urn:schemas-upnp-org:device:InternetGatewayDevice:1"
       @igd_device_upnp1 "urn:schemas-upnp-org:device:InternetGatewayDevice:1"
       @wan_device_upnp1 "urn:schemas-upnp-org:device:WANDevice:1"
-      # @supported_protocols [NatupnpV1, NatupnpV2, Natpmp]
+      # @supported_protocols [Upnpv1, Upnpv2, PMP]
 
       @discover_timeout 5_000
       # :inet.parse_address('239.255.255.250')

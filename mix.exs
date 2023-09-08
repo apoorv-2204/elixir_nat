@@ -3,7 +3,7 @@ defmodule ElixirNat.MixProject do
 
   def project do
     [
-      app: :natex,
+      app: :nat,
       version: "0.1.0",
       # elixir: "~> 1.14",
       config_path: "config/config.exs",

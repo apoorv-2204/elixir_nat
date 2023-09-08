@@ -1,4 +1,4 @@
-defmodule Natex.NatUPnP do
+defmodule Nat.Protocol do
   @derive {Inspect, only: [:service_url, :ip]}
   defstruct service_url: "", ip: "", version: "", errors: []
 
