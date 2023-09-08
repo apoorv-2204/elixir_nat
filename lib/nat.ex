@@ -1,9 +1,10 @@
 defmodule Nat do
   @moduledoc false
 
-  alias Nat.Upnpv1
-  alias Nat.Upnpv2
-  alias Nat.PMP
+
+  # alias Nat.Upnpv1
+  # alias Nat.Upnpv2
+  # alias Nat.PMP
 
   @discover_timeout 5_000
 
@@ -37,7 +38,7 @@ defmodule Nat do
     mod.delete_port_mapping(ctx, protocol, internal_port, external_port)
   end
 
-  defp discover_loop([], _ref), do: :no_nat
+  # defp discover_loop([], _ref), do: :no_nat
 
   defp discover_loop(workers, ref) do
     receive do

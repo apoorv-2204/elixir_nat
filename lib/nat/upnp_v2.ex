@@ -3,8 +3,6 @@ defmodule Nat.Upnpv2 do
 
   """
   alias Nat.Utils
-  alias Nat.NatUPnP
-  # alias Nat.Application
   use Nat.Constants
 
   def discover() do
@@ -38,7 +36,7 @@ defmodule Nat.Upnpv2 do
          internal_ip <- :inet_ext.get_internal_address(device_external_ip),
          :enabled <- get_natrsipstatus(url) do
       Logger.debug("Found device at #{internal_ip} with location #{location}")
-      {:ok, %NatUPnP{service_url: url, ip: internal_ip, version: "2"}}
+      {:ok, %Nat.Protocol{service_url: url, ip: internal_ip, version: "2"}}
     else
       :disabled ->
         Logger.debug("Device found but NAT is disabled")
@@ -154,7 +152,7 @@ defmodule Nat.Upnpv2 do
     end
   end
 
-  def status_info(%Nat.NatUPnP{service_url: url}) do
+  def status_info(%Nat.Protocol{service_url: url}) do
     msg = """
     <u:GetStatusInfo xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1"></u:GetStatusInfo>
     """
@@ -225,7 +223,7 @@ defmodule Nat.Upnpv2 do
   end
 
   def do_add_mapping(
-        nat_ctx = %Nat.NatUPnP{ip: ip, service_url: url},
+        nat_ctx = %Nat.Protocol{ip: ip, service_url: url},
         protocol,
         internal_port,
         external_port,
@@ -290,7 +288,7 @@ defmodule Nat.Upnpv2 do
   def only_permanent_lease_supported(_), do: false
 
   def delete_port_mapping(
-        %Nat.NatUPnP{ip: ip, service_url: url},
+        %Nat.Protocol{ip: ip, service_url: url},
         protocol,
         _internal_port,
         external_port
@@ -318,7 +316,7 @@ defmodule Nat.Upnpv2 do
     end
   end
 
-  def get_port_mapping(%Nat.NatUPnP{ip: ip, service_url: url}, protocol, external_port) do
+  def get_port_mapping(%Nat.Protocol{ip: ip, service_url: url}, protocol, external_port) do
     proto = Utils.protocol(protocol)
 
     msg = """

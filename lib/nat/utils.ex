@@ -298,7 +298,7 @@ defmodule Nat.Utils do
     first
   end
 
-  def get_device_address(%Nat.NatUPnP{service_url: url}) do
+  def get_device_address(%Nat.Protocol{service_url: url}) do
     # https://www.erlang.org/doc/man/uri_string#parse-1
     # https://hexdocs.pm/elixir/1.14.1/URI.html#parse/1
     with %URI{host: host} when not is_nil(host) <- URI.parse(url),
@@ -324,7 +324,7 @@ defmodule Nat.Utils do
   allows a device to request the public IP address of the IGD, which can be used to set up port
    forwarding or to allow the device to be accessed from the Internet.
   """
-  def get_external_address(%Nat.NatUPnP{service_url: url, version: ver}) do
+  def get_external_address(%Nat.Protocol{service_url: url, version: ver}) do
     message = """
       <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
       </u:GetExternalIPAddress>

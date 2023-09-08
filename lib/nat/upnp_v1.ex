@@ -148,7 +148,7 @@ defmodule Nat.Upnpv1 do
          {:ok, url} <- get_service_url(location),
          my_ip <- :inet.getaddr(ip, :inet) do
       # https://www.erlang.org/doc/man/inet#getaddr-2
-      {:ok, %Nat.NatUPnP{service_url: url, ip: my_ip}}
+      {:ok, %Nat.Protocol{service_url: url, ip: my_ip}}
     else
       {:error, reason} ->
         {:error, reason}
@@ -234,7 +234,7 @@ defmodule Nat.Upnpv1 do
     ctx
   end
 
-  def get_device_address(%Nat.NatUPnP{service_url: url}) do
+  def get_device_address(%Nat.Protocol{service_url: url}) do
     # https://www.erlang.org/doc/man/uri_string#parse-1
     # https://hexdocs.pm/elixir/1.14.1/URI.html#parse/1
     with %URI{host: host} <- URI.parse(url),
@@ -260,7 +260,7 @@ defmodule Nat.Upnpv1 do
   allows a device to request the public IP address of the IGD, which can be used to set up port
    forwarding or to allow the device to be accessed from the Internet.
   """
-  def get_external_address(%Nat.NatUPnP{service_url: url}) do
+  def get_external_address(%Nat.Protocol{service_url: url}) do
     message = """
       <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
       </u:GetExternalIPAddress>
@@ -285,7 +285,7 @@ defmodule Nat.Upnpv1 do
     end
   end
 
-  def get_internal_address(%Nat.NatUPnP{ip: ip}) do
+  def get_internal_address(%Nat.Protocol{ip: ip}) do
     {:ok, ip}
   end
 
@@ -323,7 +323,7 @@ defmodule Nat.Upnpv1 do
   end
 
   defp do_add_port_mapping(
-         %Nat.NatUPnP{ip: ip, service_url: url} = nat_ctx,
+         %Nat.Protocol{ip: ip, service_url: url} = nat_ctx,
          protocol,
          internal_port,
          external_port,
@@ -390,7 +390,7 @@ defmodule Nat.Upnpv1 do
   defp only_permanent_lease_supported(_), do: false
 
   def delete_port_mapping(
-        %Nat.NatUPnP{ip: ip, service_url: url},
+        %Nat.Protocol{ip: ip, service_url: url},
         protocol,
         _internal_port,
         external_port
@@ -413,7 +413,7 @@ defmodule Nat.Upnpv1 do
     end
   end
 
-  def get_port_mapping(%Nat.NatUPnP{ip: ip, service_url: url}, protocol, external_port) do
+  def get_port_mapping(%Nat.Protocol{ip: ip, service_url: url}, protocol, external_port) do
     protocol = Utils.protocol(protocol)
 
     msg = """
@@ -447,7 +447,7 @@ defmodule Nat.Upnpv1 do
     end
   end
 
-  def status_info(%Nat.NatUPnP{service_url: url}) do
+  def status_info(%Nat.Protocol{service_url: url}) do
     msg =
       ~s(<u:GetStatusInfo xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1"></u:GetStatusInfo>)
 
