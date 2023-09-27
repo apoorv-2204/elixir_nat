@@ -1,96 +1,6 @@
 defmodule Nat.Upnpv1 do
   @moduledoc """
-  The MX field in an SSDP (Simple Service Discovery Protocol) message is used to specify the maximum
-  number of seconds that a device should wait before responding to the message. It is used in M-SEARCH
-  messages to request that devices search for and return information about available services. In the
-  code you provided, the MX field is set to 3, which means that devices should wait a maximum of 3
-  seconds before responding to the M-SEARCH messag
-  The MAN field in the M-SEARCH message is an HTTP header field that specifies the type of the message.
-  In this case, it is set to "ssdp:discover"
-
-  M-SEARCH * HTTP/1.1
-  HOST: 239.255.255.250:1900
-  MAN: "ssdp:discover"
-  MX: seconds to delay response
-  ST: search target
-  USER-AGENT: OS/version UPnP/1.1 product/version
-
-  MAN
-  REQUIRED by HTTP Extension Framework. Unlike the NTS and ST field values, the field value of the MAN header
-  field is enclosed in double quotes; it defines the scope (namespace) of the extension. MUST be "ssdp:discover".
-
-  MX
-  REQUIRED. Field value contains maximum wait time in seconds. MUST be greater than or equal to 1 and SHOULD
-   be less than 5 inclusive.
-
-  ST
-  REQUIRED. Field value contains Search Target. MUST be one of the following. (See NT header field in NOTIFY with
-   ssdp:alive above.) Single URI.
-
-  `ssdp:all`  => Search for all devices and services.
-
-  `upnp:rootdevice` => Search for root devices only.
-
-  `uuid:device-UUID` => Search for a particular device. device-UUID specified by UPnP vendor.
-
-  `urn:schemas-upnp-org:device:deviceType:ver` => Search for any device of this type where deviceType and ver
-  are    defined by the UPnP Forum working committee.
-
-  `urn:schemas-upnp-org:service:serviceType:ver` => Search for any service of this type where serviceType and ver
-  are defined by the UPnP Forum working committee.
-
-  `urn:domain-name:device:deviceType:ver` => Search for any device of this typewhere domain-name (a Vendor Domain Name),
-   deviceType and ver are defined by the UPnP vendor and ver specifies the highest specifies the highest supported version
-    of the device type. Period characters in the Vendor Domain Name MUST be replaced with hyphens in accordance with
-     RFC 2141.
-
-  `urn:domain-name:service:serviceType:ver` => Search for any service of this type. Where domain-name
-  (a Vendor Domain Name), serviceType and ver are defined by the UPnP vendor and ver specifies the highest specifies
-   the highest supported version of the service type. Period characters in the Vendor Domain Name MUST be replaced
-    with hyphens in accordance with RFC 2141.
-
-    WANPPPConnection
-   PPP connections originating at the gateway or relayed or bridged through the    gateway
-
-  WANIPConnection
-  IP connections originating or relayed or bridged through the gateway
-
-  WANPOTSLinkConfig
-  Configuration parameters associated with a WAN link on a Plain Old Telephone Service (POTS) modem
-
-  WANDSLLinkConfig
-  Configuration parameters associated with a WAN link on a Digital Subscriber  Link (DSL) modem
-
-  WANCableLinkConfig
-   Configuration parameters associated with a WAN link on a cable modem
-
-  WANEthernetLinkConfig
-   Configuration parameters associated with an Ethernet- attached external modem
-  (cable or DSL). If proprietary mechanisms are available to discover and configure
-  an external modem, it is recommended that modem-specific LinkConfig services
-  be modeled instead of this service
-
-   Starts the inets ( httpc(HTTP/1.1 client , httpd HTTP server API ) application.
-    Opens the port 0 and sets the options [:active, :inet, :binary] for the socket.
-    Sends the M-SEARCH request to the multicast address
-    St: defines server tyype for IGD:1 discovery.
-    Gen.udp: is used as a transport protocol for socket.
-
-  An Internet Gateway is a network connecting device/appliance that can be used to connect two devices in two different networks implementing different networking protocols and overall network architectures. The Internet Gateway Device (IGD) Standardized Device Control Protocol is a protocol for mapping ports in network address translation (NAT) setups, supported by some NAT-enabled routers. The protocol is standardized by the UPnP forum, and allows UPnP aware hosts to configure the device to allow incoming connections to the host.
-
-    HTTP/1.1 200 OK
-  CACHE-CONTROL: max-age = `seconds until advertisement expires`
-  DATE: `when response was generated`
-  EXT:
-  LOCATION: `URL for UPnP description for root device`
-  SERVER: `OS/version UPnP/1.1 product/version`
-  ST: `search target`
-  USN: `composite identifier for the advertisement BOOTID.UPNP.ORG: number increased each time device sends an initial
-   announce or an update message`
-
-  CONFIGID.UPNP.ORG: `number used for caching description information`
-  SEARCHPORT.UPNP.ORG: `number identifies port on which device responds to unicast M-SEARCH`
-
+    Provides interfaces to open ports for upnp v1 enabled IGD/router
   """
 
   require Logger
@@ -98,30 +8,64 @@ defmodule Nat.Upnpv1 do
   use Nat.Constants
 
   def msearch_msg() do
-    # msearch = [
-    #   "M-SEARCH * HTTP/1.1\r\n",
-    #   "HOST: 239.255.255.250:1900\r\n",
-    #   "MAN: \"ssdp:discover\"\r\n",
-    #   "ST: #{@st1}\r\n",
-    #   "MX: 3\r\n\r\n"
-    # ]
-
     ~s(M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\nST: #{@st1}\r\nMX: 3\r\n\r\n)
   end
 
-  def discover do
-    # Application.start(:inets)
-    {:ok, socket} = :gen_udp.open(0, [:inet, :binary, active: :once])
-    # {ok, Sock} = gen_udp:open(0, [{active, once}, inet, binary]),
+  def init do
+    %{
+      errors: [],
+      service_type: 'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
+      igd_device_st: 'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
+      wan_device_st: 'urn:schemas-upnp-org:device:WANDevice:1',
+      wan_conn_device_st: 'urn:schemas-upnp-org:device:WANConnectionDevice:1',
+      msearch_msg:
+        ~s(M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: "ssdp:discover"\r\nST: #{@st1}\r\nMX: 3\r\n\r\n),
+      port: 0,
+      socket_options: [:inet, :binary, active: :once],
+      service_type: "St",
+      root_url: '',
+      socket: nil,
+      device_list_x_path: 'deviceList/device',
+      st_list_x_path: 'serviceList/service',
+      st_xpath: 'serviceType/text',
+      multicast_ip: @multicast_ip,
+      multicast_port: @multicast_port,
+      search_attempts: 3,
+      igd_internal_ip: nil,
+      igd_desc_url: nil
+    }
+  end
+
+  def search_network() do
+    init()
+    |> discover()
+    |> fetch_service_url()
+    |> cleanup()
+  end
+
+  def cleanup(state) do
+    :gen_udp.close(state[:socket])
+
+    state
+  end
+
+  def discover(state = %{errors: [], socket_options: opts, port: port}) do
+    {:ok, socket} = :gen_udp.open(port, opts)
+    :inet.setopts(socket, active: :once)
+    state = %{state | socket: socket}
 
     try do
-      do_discover(socket, msearch_msg(), _attempts = 3)
+      do_discover(state)
     rescue
-      e -> Logger.error("Error: #{inspect(e)}")
+      e ->
+        Logger.error("errors: #{inspect(e)}")
+        %{state | errors: [e]}
     after
-      :gen_udp.close(socket)
+      :gen_udp.close(state[:socket])
     end
   end
+
+  def discover(state), do: state
 
   @doc """
     Sends the M-SEARCH request to the multicast address(239.255.255.250,1900), from port 0.
@@ -129,51 +73,49 @@ defmodule Nat.Upnpv1 do
     Wait for the reply from IGD via loop impls a recieve clause.
 
   """
-  def do_discover(_sock, _m_search, 0), do: {:error, :timeout}
-  # {:udp, #Port<0.7>, {192, 168, 1, 1}, 46422,
-  # "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Thu, 01 Jan 1970 04:51:45 GMT\r\nEXT:\r\nLOCATION: http://192.168.1.1:52869/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: e02642a8-1dec-11b2-9b3f-bb4cd02d4bbe\r\nSERVER: Linux, UPnP/1.0, Portable SDK for UPnP devices/1.6.22\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\nUSN: uuid:20809696-105a-3721-e8b8-28777726497e::urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n\r\n"}
-  def do_discover(socket, m_search, attempts) do
+  def do_discover(state = %{search_attempts: 0}),
+    do: %{state | errors: [{:timeout, :failed_to_locate_igd}]}
+
+  def do_discover(state) do
     # https://www.erlang.org/doc/man/inet#setopts-2
     # https://www.erlang.org/doc/man/gen_udp#type-option
-    :inet.setopts(socket, active: :once)
 
-    timeout = Utils.exponential_backoff(attempts)
+    timeout = Utils.exponential_backoff(state[:search_attempts])
 
-    # https://www.erlang.org/doc/man/gen_udp#send-4
-    :ok = :gen_udp.send(socket, _dest = @multicast_ip, @multicast_port, m_search)
+    :ok =
+      :gen_udp.send(
+        state[:socket],
+        _dest = state[:multicast_ip],
+        state[:multicast_port],
+        state[:msearch_msg]
+      )
 
-    # :ok = :gen_udp.send(socket, String.to_charlist("239.255.255.250", 1900, :erlang.iolist_to_binary(m_search))
+    case await_reply(state[:socket], timeout) do
+      {:ok, igd_internal_ip, igd_desc_url} ->
+        %{state | igd_internal_ip: igd_internal_ip, igd_desc_url: igd_desc_url}
 
-    with {:ok, ip, location} <- await_reply(socket, timeout),
-         {:ok, url} <- get_service_url(location),
-         my_ip <- :inet.getaddr(ip, :inet) do
-      # https://www.erlang.org/doc/man/inet#getaddr-2
-      {:ok, %Nat.Protocol{service_url: url, ip: my_ip}}
-    else
-      {:error, reason} ->
-        {:error, reason}
-
-      :error ->
-        do_discover(socket, m_search, attempts - 1)
+      {:error, :timeout} ->
+        do_discover(%{state | search_attempts: state[:search_attempts] - 1})
     end
   end
 
   # waits reply from the an IGD device
   @spec await_reply(socket :: :inet.socket(), timer :: non_neg_integer()) ::
-          {:ok, :inet.ip4_address(), String.t()} | {:error, :timeout}
+          {:ok, :inet.ip4_address(), String.t()} | {:error, :timeout | :service_info_url}
   def await_reply(socket, timer) do
     receive do
       {:udp, ^socket, igd_internal_ip, _reply_ing_port, reply_msg} ->
+        # {:udp, #Port<0.8>, {192, 168, 1, 1}, 39286,"msg"}
         Logger.debug("Received: #{inspect(reply_msg)}")
 
-        case parse(reply_msg) do
-          {:ok, location} ->
+        case Utils.find_igd_location(reply_msg) do
+          {:ok, service_info_url} ->
             debug_log({"await_reply", {igd_internal_ip, location}})
 
-            {:ok, igd_internal_ip, location}
+            {:ok, igd_internal_ip, service_info_url}
 
           {:error, e} ->
-            Logger.debug("parse: #{inspect(e)}")
+            Logger.debug("find_igd_location: #{inspect(e)}")
             await_reply(socket, timer)
         end
     after
@@ -183,51 +125,61 @@ defmodule Nat.Upnpv1 do
     end
   end
 
-  @spec parse(data :: binary()) :: {:ok, binary()} | {:error, :st_not_found | :no_location}
-  def parse(data) do
-    header = Utils.get_headers(data)
-    service_type = Map.get(header, "St", :st_not_found)
-    location = Map.get(header, :Location, :location_not_found)
-    expected_st = @st1
+  def fetch_service_url(state = %{root_url: root_url}) do
+    state
+    |> fetch_igd_desc()
+    |> get_device_type()
+    |> get_wan_device()
 
-    case {service_type, location} do
-      {_service_type, :location_not_found} ->
-        {:error, :no_location}
+    #   {:ok, url} <- Utils.get_service_url(location),
+    #   my_ip <- :inet.getaddr(ip, :inet) do
+    # # https://www.erlang.org/doc/man/inet#getaddr-2
+    # {:ok, %Nat.Protocol{service_url: url, ip: my_ip}}
+    # else
+    # {:error, reason} ->
+    #  {:error, reason}
 
-      {:st_not_found, _} ->
-        {:error, :st_not_found}
-
-      {^expected_st, location} ->
-        debug_log({"Found location", location})
-        {:ok, String.trim(location)}
-    end
+    # :error ->
+    #  do_discover(socket, m_search, attempts - 1)
+    # end
   end
 
-  def get_service_url(root_url) do
-    # query = :erlang.binary_to_list(root_url)
-    query = String.to_charlist(root_url)
-      # :httpc.set_options([{:verbose, :debug}])
-      # :httpc.set_options([])
-    case :httpc.request(query) do
-      {:ok, {{_, 200, _}, _, body}} ->
-        {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
-        [device | _] = :xmerl_xpath.string("//device", xml)
-
-        case device_type(device) do
-          "urn:schemas-upnp-org:device:InternetGatewayDevice:1" ->
-            get_wan_device(device, root_url)
-
-          _ ->
-            {:error, :no_gateway_device}
-        end
-
-      {:ok, %{status_code: status_code}} ->
-        {:error, Integer.to_string(status_code)}
+  def fetch_igd_desc(state = %{root_url: root_url, errors: []}) do
+    case Utils.http_request(root_url) do
+      {:ok, response} ->
+        %{state | fetch_igd_desc: response}
 
       {:error, reason} ->
-        {:error, reason}
+        %{state | errors: [{:fetch_igd_desc, reason}]}
     end
   end
+
+  def fetch_igd_desc(state), do: state
+
+  def get_device_type(state = %{errors: [], fetch_igd_desc: response}) do
+    {xml, _} = body |> String.to_charlist() |> :xmerl_scan.string([{:space, :normalize}])
+    [devices | _] = '//device' |> String.to_charlist() |> :xmerl_xpath.string(xml)
+
+    device_type =
+      'deviceType/text()'
+      |> :xmerl_xpath.string(devices)
+      |> Utils.extract_txt()
+
+    %{state | igd_device_type: device_type, device_list: devices}
+  end
+
+  def get_device_type(state), do: state
+
+  def get_wan_device(state = %{errors: [], igd_device_type: device_type}) do
+    # 'urn:schemas-upnp-org:device:InternetGatewayDevice:1'
+    # should be a igd decice that support upnp1
+    case device_type == state[:device_type] do
+    end
+
+    %{state | igd_device_type: device_type, device_list: devices}
+  end
+
+  def get_wan_device(state), do: state
 
   def debug_log(ctx) do
     Utils.debug_log({"[UPNPV1]", ctx})
@@ -250,16 +202,6 @@ defmodule Nat.Upnpv1 do
     end
   end
 
-  @doc """
-  message => XML-formatted message that can be sent to a UPnP device to request its external IP address.
-  The message belongs to the UPnP service "WANIPConnection", which is used to manage internet
-  connection settings on the device.
-  `GetExternalIPAddress` => operation defined by upnp
-  ` WANIPConnection service. ` => service provided by some Internet Gateway Devices (IGDs) that
-  allow a device on a home network to request the public IP address of the IGD. pat of upnp protocol
-  allows a device to request the public IP address of the IGD, which can be used to set up port
-   forwarding or to allow the device to be accessed from the Internet.
-  """
   def get_external_address(%Nat.Protocol{service_url: url}) do
     message = """
       <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
@@ -469,81 +411,4 @@ defmodule Nat.Upnpv1 do
         e
     end
   end
-
-  defp get_wan_device(device, root_url) do
-    case get_device(device, "urn:schemas-upnp-org:device:WANDevice:1") do
-      {:ok, device1} ->
-        get_connection_device(device1, root_url)
-
-      _ ->
-        {:error, :no_wan_device}
-    end
-  end
-
-  defp get_connection_device(device, root_url) do
-    case get_device(device, "urn:schemas-upnp-org:device:WANConnectionDevice:1") do
-      {:ok, wan_conn_device} ->
-        get_connection_url(wan_conn_device, root_url)
-
-      _ ->
-        {:error, :no_wanconnection_device}
-    end
-  end
-
-  defp get_connection_url(d, root_url) do
-    with {:ok, service} <- get_service(d, "urn:schemas-upnp-org:service:WANIPConnection:1"),
-         url <- Utils.extract_txt(:xmerl_xpath.string("controlURL/text()", service)),
-         {:fetch_service, [scheme, rest]} <- {:fetch_service, String.split(root_url, "://")},
-         {:fetch_service, [net_loc | _]} <- {:fetch_service, String.split(rest, "/")} do
-      ctl_url = "#{scheme}://#{net_loc}#{url}"
-      {:ok, ctl_url}
-    else
-      {:fetch_service, e} ->
-        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
-        {:error, :invalid_control_url}
-
-      e ->
-        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
-        {:error, :no_wanipconnection}
-    end
-  end
-
-  defp get_device(device, device_type) do
-    device_list = :xmerl_xpath.string("deviceList/device", device)
-    find_device(device_list, device_type)
-  end
-
-  defp find_device([], _device_type), do: false
-
-  defp find_device([device | rest], device_type) do
-    case device_type(device) do
-      nil ->
-        find_device(rest, device_type)
-
-      _device_type ->
-        {:ok, device}
-    end
-  end
-
-  defp get_service(device, service_type) do
-    service_list = :xmerl_xpath.string("serviceList/service", device)
-    find_service(service_list, service_type)
-  end
-
-  defp find_service([], _service_type), do: false
-
-  defp find_service([s | rest], service_type) do
-    case Utils.extract_txt(:xmerl_xpath.string("serviceType/text()", s)) do
-      nil ->
-        find_service(rest, service_type)
-
-      _service_type ->
-        {:ok, s}
-    end
-  end
-
-  defp device_type(device),
-    do: Utils.extract_txt(:xmerl_xpath.string("deviceType/text()", device))
-
-  def split(string, pattern), do: :re.split(string, pattern, return: :list)
 end

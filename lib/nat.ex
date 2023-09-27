@@ -1,7 +1,6 @@
 defmodule Nat do
   @moduledoc false
 
-
   # alias Nat.Upnpv1
   # alias Nat.Upnpv2
   # alias Nat.PMP

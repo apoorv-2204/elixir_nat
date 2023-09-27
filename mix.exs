@@ -22,7 +22,8 @@ defmodule ElixirNat.MixProject do
         :logger,
         :inets,
         :xmerl,
-        :public_key
+        :public_key,
+        :httpoison
       ]
     ]
   end
@@ -32,7 +33,8 @@ defmodule ElixirNat.MixProject do
     [
       {:inet_ext, "~> 1.0"},
       {:inet_cidr, "~> 1.0.2", hex: :erl_cidr},
-      {:castore, "~> 1.0", override: true}
+      {:castore, "~> 1.0", override: true},
+      {:httpoison, "~> 2.0"}
     ]
   end
 end

@@ -4,6 +4,7 @@ defmodule Nat.Utils do
   use Nat.Constants
   import Bitwise, only: [bsl: 2]
   use Nat.Errors
+  alias __MODULE__
 
   @doc """
   Returns path in the mutable storage directory
@@ -110,9 +111,7 @@ defmodule Nat.Utils do
   end
 
   @spec random_port() :: pos_integer()
-  def random_port() do
-    :rand.uniform(62000)
-  end
+  def random_port(), do: :rand.uniform(62000)
 
   def timestamp() do
     {unix_milli, sec, _} = :erlang.timestamp()
@@ -189,96 +188,97 @@ defmodule Nat.Utils do
     protocol |> String.upcase()
   end
 
-  defp find_device([], _device_type), do: false
+  # defp find_device([], _device_type), do: false
 
-  defp find_device([device | rest], device_type) do
-    case device_type(device) do
-      device_type ->
-        {:ok, device}
+  # defp find_device([device | rest], device_type) do
+  #   case device_type(device) do
+  #     device_type ->
+  #       {:ok, device}
 
-      _ ->
-        find_device(rest, device_type)
-    end
-  end
+  #     _ ->
+  #       find_device(rest, device_type)
+  #   end
+  # end
 
-  def device_type(device) do
-    extract_txt(:xmerl_xpath.string("deviceType/text()", device))
-  end
+  # def device_type(device) do
+  #   extract_txt(:xmerl_xpath.string("deviceType/text()", device))
+  # end
 
   @doc """
     Search for device:WANDevice:1/2
   """
-  def get_wan_device(device, root_url, version) do
-    case get_device(device, wan_device_tag(version)) do
-      {:ok, device1} ->
-        get_connection_device(device1, root_url, version)
 
-      _ ->
-        {:error, :no_wan_device}
-    end
-  end
+  # def get_wan_device(device, root_url, version) do
+  #   case get_device(device, wan_device_tag(version)) do
+  #     {:ok, device1} ->
+  #       get_connection_device(device1, root_url, version)
 
-  def wan_device_tag("1"), do: "urn:schemas-upnp-org:device:WANDevice:1"
-  def wan_device_tag("2"), do: "urn:schemas-upnp-org:device:WANDevice:2"
+  #     _ ->
+  #       {:error, :no_wan_device}
+  #   end
+  # end
 
-  @doc """
-    Search for device:WANConnectionDevice:1/2
-  """
-  def get_connection_device(device, root_url, version) do
-    case get_device(device, wan_conn_device_tag(version)) do
-      {:ok, wan_conn_device} ->
-        get_connection_url(wan_conn_device, root_url, version)
+  # def wan_device_tag("1"), do: "urn:schemas-upnp-org:device:WANDevice:1"
+  # def wan_device_tag("2"), do: "urn:schemas-upnp-org:device:WANDevice:2"
 
-      _ ->
-        {:error, :no_wanconnection_device}
-    end
-  end
+  # @doc """
+  #   Search for device:WANConnectionDevice:1/2
+  # """
+  # def get_connection_device(device, root_url, version) do
+  #   case get_device(device, wan_conn_device_tag(version)) do
+  #     {:ok, wan_conn_device} ->
+  #       get_connection_url(wan_conn_device, root_url, version)
 
-  def wan_conn_device_tag("1"), do: "urn:schemas-upnp-org:device:WANConnectionDevice:1"
-  def wan_conn_device_tag("2"), do: "urn:schemas-upnp-org:device:WANConnectionDevice:2"
+  #     _ ->
+  #       {:error, :no_wanconnection_device}
+  #   end
+  # end
 
-  def get_device(device, device_type) do
-    device_list = :xmerl_xpath.string("deviceList/device", device)
-    find_device(device_list, device_type)
-  end
+  # def wan_conn_device_tag("1"), do: "urn:schemas-upnp-org:device:WANConnectionDevice:1"
+  # def wan_conn_device_tag("2"), do: "urn:schemas-upnp-org:device:WANConnectionDevice:2"
 
-  def get_connection_url(device, root_url, version) do
-    with {:ok, service} <- get_service(device, service_type_tag(version)),
-         url <- extract_txt(:xmerl_xpath.string("controlURL/text()", service)),
-         {:fetch_service, [scheme, rest]} <- {:fetch_service, String.split(root_url, "://")},
-         {:fetch_service, [net_loc | _]} <- {:fetch_service, String.split(rest, "/")} do
-      ctl_url = "#{scheme}://#{net_loc}#{url}"
-      {:ok, ctl_url}
-    else
-      {:fetch_service, e} ->
-        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
-        {:error, :invalid_control_url}
+  # def get_device(device, device_type) do
+  #   device_list = :xmerl_xpath.string("deviceList/device", device)
+  #   Utils.find_device(device_list, device_type)
+  # end
 
-      e ->
-        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
-        {:error, :no_wanipconnection}
-    end
-  end
+  # def get_connection_url(device, root_url, version) do
+  #   with {:ok, service} <- get_service(device, service_type_tag(version)),
+  #        url <- extract_txt(:xmerl_xpath.string("controlURL/text()", service)),
+  #        {:fetch_service, [scheme, rest]} <- {:fetch_service, String.split(root_url, "://")},
+  #        {:fetch_service, [net_loc | _]} <- {:fetch_service, String.split(rest, "/")} do
+  #     ctl_url = "#{scheme}://#{net_loc}#{url}"
+  #     {:ok, ctl_url}
+  #   else
+  #     {:fetch_service, e} ->
+  #       Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
+  #       {:error, :invalid_control_url}
 
-  def service_type_tag("1"), do: "urn:schemas-upnp-org:service:WANIPConnection:1"
-  def service_type_tag("2"), do: "urn:schemas-upnp-org:service:WANIPConnection:2"
+  #     e ->
+  #       Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
+  #       {:error, :no_wanipconnection}
+  #   end
+  # end
 
-  def get_service(device, service_type) do
-    service_list = :xmerl_xpath.string("serviceList/service", device)
-    find_service(service_list, service_type)
-  end
+  # def service_type_tag("1"), do: "urn:schemas-upnp-org:service:WANIPConnection:1"
+  # def service_type_tag("2"), do: "urn:schemas-upnp-org:service:WANIPConnection:2"
 
-  defp find_service([], _service_type), do: {:error, :not_found}
+  # def get_service(device, service_type) do
+  #   service_list = :xmerl_xpath.string("serviceList/service", device)
+  #   find_service(service_list, service_type)
+  # end
 
-  defp find_service([st | rest], service_type) do
-    case extract_txt(:xmerl_xpath.string("serviceType/text()", st)) do
-      [] ->
-        find_service(rest, service_type)
+  # defp find_service([], _service_type), do: {:error, :not_found}
 
-      _service_type ->
-        {:ok, st}
-    end
-  end
+  # defp find_service([st | rest], service_type) do
+  #   case extract_txt(:xmerl_xpath.string("serviceType/text()", st)) do
+  #     [] ->
+  #       find_service(rest, service_type)
+
+  #     _service_type ->
+  #       {:ok, st}
+  #   end
+  # end
 
   @doc """
   Takes a list of XML elements (xml), iterates through the elements, and extracts the text value
@@ -291,11 +291,27 @@ defmodule Nat.Utils do
     extracted_text_values =
       xml
       # https://www.erlang.org/doc/man/erlang#is_record-2
-      |> Enum.filter(fn x -> :erlang.is_record(x, :xmlText) end)
-      |> Enum.map(& &1.xmlText.value)
 
-    [first | _] = extracted_text_values
-    first
+      |> Enum.filter(fn
+        {:xmlText, _, _, _, _, _} ->
+          true
+
+        _ ->
+          false
+      end)
+      |> Enum.map(fn
+        {:xmlText, _, _, _, xml_node, :text} -> xml_node
+        _ -> nil
+      end)
+
+    case extracted_text_values do
+      [] ->
+        # No text nodes found, return a default value or s
+        {:error, nil}
+
+      [first | _] ->
+        first
+    end
   end
 
   def get_device_address(%Nat.Protocol{service_url: url}) do
@@ -324,39 +340,199 @@ defmodule Nat.Utils do
   allows a device to request the public IP address of the IGD, which can be used to set up port
    forwarding or to allow the device to be accessed from the Internet.
   """
-  def get_external_address(%Nat.Protocol{service_url: url, version: ver}) do
-    message = """
-      <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
-      </u:GetExternalIPAddress>
-    """
 
-    # case ver do
-    #   "1" ->
+  # def get_external_address(%Nat.Protocol{service_url: url, version: ver}) do
+  #   message = """
+  #     <u:GetExternalIPAddress xmlns:u="urn:schemas-upnp-org:service:WANIPConnection:1">
+  #     </u:GetExternalIPAddress>
+  #   """
 
-    #   "2" ->
-    #     nil
-    # end
+  #   # case ver do
+  #   #   "1" ->
 
-    case __MODULE__.soap_request(url, "GetExternalIPAddress", message) do
-      {:ok, body} ->
-        {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
+  #   #   "2" ->
+  #   #     nil
+  #   # end
 
-        [infos | _] =
-          :xmerl_xpath.string(
-            "//s:Envelope/s:Body/*[local-name() = 'GetExternalIPAddressResponse']",
-            xml
-          )
+  #   case __MODULE__.soap_request(url, "GetExternalIPAddress", message) do
+  #     {:ok, body} ->
+  #       {xml, _} = :xmerl_scan.string(body, [{:space, :normalize}])
 
-        ip = extract_txt(:xmerl_xpath.string("NewExternalIPAddress/text()", infos))
+  #       [infos | _] =
+  #         :xmerl_xpath.string(
+  #           "//s:Envelope/s:Body/*[local-name() = 'GetExternalIPAddressResponse']",
+  #           xml
+  #         )
 
-        {:ok, ip}
+  #       ip = extract_txt(:xmerl_xpath.string("NewExternalIPAddress/text()", infos))
 
-      error ->
-        error
+  #       {:ok, ip}
+
+  #     error ->
+  #       error
+  #   end
+  # end
+
+  def debug_log(ctx) do
+    Logger.debug("[#{inspect(ctx)}]")
+    ctx
+  end
+
+  def http_request(query) do
+    case HTTPoison.get(query) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        {:ok, body}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
-  def debug_log(contex) do
-    Logger.debug("[#{inspect(contex)}]")
+  @spec find_igd_location(data :: binary()) ::
+          {:ok, binary()} | {:error, :st_not_found | :no_location}
+  def find_igd_location(data) do
+    header = get_headers(data)
+    service_type = Map.get(header, "St", :st_not_found)
+    location = Map.get(header, :Location, :location_not_found)
+    expected_st = @st1
+
+    case {service_type, location} do
+      {_service_type, :location_not_found} ->
+        {:error, :no_location}
+
+      {:st_not_found, _} ->
+        {:error, :st_not_found}
+
+      {^expected_st, location} ->
+        debug_log({"Found location", location})
+        {:ok, String.trim(location)}
+    end
   end
+
+  def get_service_url(root_url) do
+    # query = :erlang.binary_to_list(root_url)
+    query = String.to_charlist(root_url)
+
+    case Utils.http_request(query) do
+      {:ok, response} ->
+        device = Utils.find_device(response)
+
+        case device_type(device) do
+          'urn:schemas-upnp-org:device:InternetGatewayDevice:1' ->
+            get_wan_device(device, root_url)
+
+          _ ->
+            {:error, :no_gateway_device}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def find_device(body) do
+    {xml, _} = body |> String.to_charlist() |> :xmerl_scan.string([{:space, :normalize}])
+    [device | _] = "//device" |> String.to_charlist() |> :xmerl_xpath.string(xml)
+    device
+  end
+
+  def device_type(device) do
+    "deviceType/text()"
+    |> String.to_charlist()
+    |> :xmerl_xpath.string(device)
+    |> extract_txt()
+  end
+
+  def get_wan_device(device, root_url) do
+    case get_device(device, 'urn:schemas-upnp-org:device:WANDevice:1') do
+      {:ok, device1_xml} ->
+        get_connection_device(device1_xml, root_url)
+
+      _ ->
+        {:error, :no_wan_device}
+    end
+  end
+
+  def get_connection_device(device, root_url) do
+    case get_device(device, 'urn:schemas-upnp-org:device:WANConnectionDevice:1') do
+      {:ok, wan_conn_device} ->
+        get_connection_url(wan_conn_device, root_url)
+
+      _ ->
+        {:error, :no_wanconnection_device}
+    end
+  end
+
+  defp get_device(device, device_type) do
+    device_list = :xmerl_xpath.string('deviceList/device', device)
+    find_device(device_list, device_type)
+  end
+
+  defp find_device([], _device_type), do: false
+
+  defp find_device([device | rest], device_type) do
+    case device_type(device) do
+      nil ->
+        find_device(rest, device_type)
+
+      _device_type ->
+        {:ok, device}
+    end
+  end
+
+  defp get_service(device, service_type) do
+    service_list = :xmerl_xpath.string("serviceList/service", device)
+    find_service(service_list, service_type)
+  end
+
+  defp find_service([], _service_type), do: false
+
+  defp find_service([s | rest], service_type) do
+    case Utils.extract_txt(:xmerl_xpath.string("serviceType/text()", s)) do
+      nil ->
+        find_service(rest, service_type)
+
+      _service_type ->
+        {:ok, s}
+    end
+  end
+
+  def split(string, pattern), do: :re.split(string, pattern, return: :list)
+
+  def get_connection_url(d, root_url) do
+    with {:ok, service} <- get_service(d, "urn:schemas-upnp-org:service:WANIPConnection:1"),
+         url <- Utils.extract_txt(:xmerl_xpath.string("controlURL/text()", service)),
+         {:fetch_service, [scheme, rest]} <- {:fetch_service, String.split(root_url, "://")},
+         {:fetch_service, [net_loc | _]} <- {:fetch_service, String.split(rest, "/")} do
+      ctl_url = "#{scheme}://#{net_loc}#{url}"
+      {:ok, ctl_url}
+    else
+      {:fetch_service, e} ->
+        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
+        {:error, :invalid_control_url}
+
+      e ->
+        Logger.debug("[get_connection_url][#{__MODULE__}] #{inspect(e)}")
+        {:error, :no_wanipconnection}
+    end
+  end
+
+  # defp find_device([], _device_type), do: false
+
+  # defp find_device([device | rest], device_type) do
+  #   case device_type(device) do
+  #     device_type ->
+  #       {:ok, device}
+
+  #     _ ->
+  #       find_device(rest, device_type)
+  #   end
+  # end
+
+  # def device_type(device) do
+  #   extract_txt(:xmerl_xpath.string("deviceType/text()", device))
+  # end
+end
+
+
 end

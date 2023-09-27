@@ -28,6 +28,20 @@ defmodule Nat.Constants do
       @lifetime 3600
 
       @pmp_port 5351
+
+      @all %{
+        upnp_v1: %{
+          service_type: 'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
+          igd_device_st: 'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
+          wan_device_st: 'urn:schemas-upnp-org:device:WANDevice:1'
+        },
+        upnp_v2: %{
+          service_type: 'urn:schemas-upnp-org:device:InternetGatewayDevice:2',
+          igd_device_st: 'urn:schemas-upnp-org:device:InternetGatewayDevice:2',
+          wan_device_st: 'urn:schemas-upnp-org:device:WANDevice:2'
+        },
+        pmp: %{}
+      }
     end
   end
 end
